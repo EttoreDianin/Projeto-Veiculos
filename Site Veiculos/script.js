@@ -1,41 +1,68 @@
-const form = document.getElementById("form");
-const lista = document.getElementById("listaVeiculos");
+const form = document.getElementById('formCadastro');
+const listaVeiculos = document.getElementById('listaVeiculos');
 
-function salvarVeiculo(veiculo) {
-  const veiculos = JSON.parse(localStorage.getItem("veiculos") || "[]");
-  veiculos.push(veiculo);
-  localStorage.setItem("veiculos", JSON.stringify(veiculos));
+// Ajuste a URL para seu backend real (porta e host)
+const API_URL = 'http://localhost:8080/veiculos';
+
+// Carrega e mostra a lista de veículos da API
+async function carregarVeiculos() {
+    try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error('Erro ao buscar veículos');
+        const veiculos = await res.json();
+
+        listaVeiculos.innerHTML = '';
+
+        if (veiculos.length === 0) {
+            listaVeiculos.innerHTML = '<li>Nenhum veículo cadastrado.</li>';
+            return;
+        }
+
+        veiculos.forEach(v => {
+            const li = document.createElement('li');
+            li.textContent = `${v.tipo || v.constructor.name} — Placa: ${v.placa} | Marca: ${v.marca} | Modelo: ${v.modelo}`;
+            listaVeiculos.appendChild(li);
+        });
+    } catch (error) {
+        listaVeiculos.innerHTML = `<li>Erro ao carregar veículos: ${error.message}</li>`;
+    }
 }
 
-function carregarVeiculos() {
-  lista.innerHTML = "";
-  const veiculos = JSON.parse(localStorage.getItem("veiculos") || "[]");
+// Envia os dados do formulário para o backend (POST)
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
 
-  veiculos.forEach((v, index) => {
-    const item = document.createElement("li");
-    item.innerHTML = `<strong>${v.tipo}</strong> | Placa: ${v.placa} | Marca: ${v.marca} | Modelo: ${v.modelo}`;
-    lista.appendChild(item);
-  });
-}
+    const tipo = form.tipo.value.trim();
+    const placa = form.placa.value.trim();
+    const marca = form.marca.value.trim();
+    const modelo = form.modelo.value.trim();
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
+    if (!tipo || !placa || !marca || !modelo) {
+        alert('Por favor, preencha todos os campos.');
+        return;
+    }
 
-  const tipo = document.getElementById("tipo").value;
-  const placa = document.getElementById("placa").value.trim().toUpperCase();
-  const marca = document.getElementById("marca").value.trim();
-  const modelo = document.getElementById("modelo").value.trim();
+    const veiculo = { tipo, placa, marca, modelo };
 
-  if (!tipo || !placa || !marca || !modelo) {
-    alert("Preencha todos os campos!");
-    return;
-  }
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(veiculo)
+        });
 
-  const veiculo = { tipo, placa, marca, modelo };
-  salvarVeiculo(veiculo);
-  carregarVeiculos();
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || 'Erro ao cadastrar veículo');
+        }
 
-  form.reset();
+        alert('Veículo cadastrado com sucesso!');
+        form.reset();
+        carregarVeiculos();
+    } catch (error) {
+        alert('Erro: ' + error.message);
+    }
 });
 
+// Carrega veículos assim que a página abre
 carregarVeiculos();
